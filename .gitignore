@@ -20,3 +20,12 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+
+### AL ###
+numpy_ls0618SLSQP1.py
+numpy_ls0618SLSQP_compare.py
+s0621atnmpc.csv
+0619nmpc.csv
+usv_data20250612.csv
+Simulation_nmpc0621.py
+model_identification_metrics.csv
