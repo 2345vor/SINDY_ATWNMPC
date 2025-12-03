@@ -49,7 +49,7 @@ int pwmA1 = 0, pwmB1 = 0;
 void commend_parse(String incomingPacket)
 {
   incomingPacket.trim();
-  // 解析控制指令
+  // 解析控制指令 格式：speed1,speed2,speed3,speed4；前进实例：5000,0,5000,0；后退实例：-5000,0,-5000,0；左转实例：0,5000,0,-5000；右转实例：0,-5000,0,5000；
   String command(incomingPacket);
   int commaIndex1 = command.indexOf(',');
   int commaIndex2 = command.indexOf(',', commaIndex1 + 1);
@@ -61,8 +61,8 @@ void commend_parse(String incomingPacket)
   int speed4 = command.substring(commaIndex3 + 1).toInt();
   double moto1 = speed1 - speed2;
   double moto2 = speed3 - speed4;
-  pwmA1 = int((moto1 / 250000) * 255);
-  pwmB1 = int((moto2 / 250000) * 255);
+  pwmA1 = int((moto1 / 5000) * 255);
+  pwmB1 = int((moto2 / 5000) * 255);
   // Set_Pwm( moto1,  moto2);
 }
 void Set_Pwm(int moto1, int moto2)
