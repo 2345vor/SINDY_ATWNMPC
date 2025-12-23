@@ -14,9 +14,9 @@ def parse_arguments():
     """解析命令行参数"""
     parser = argparse.ArgumentParser(description='NMPC轨迹跟踪控制验证')
     parser.add_argument('--model', type=int, choices=[1, 2, 3], default=1,
-                       help='模型类别 (1: 基础模型18参数, 2: 分离模型21参数, 3: 简化模型16参数)')
-    parser.add_argument('--trajectory', type=int, choices=[1, 2, 3], default=3,
-                       help='跟踪曲线 (1: 椭圆, 2: 正弦直线, 3: 双正弦)')
+                       help='模型类别 (1: SGF模型, 2: LPF模型, 3: EKF模型)')
+    parser.add_argument('--trajectory', type=int, choices=[1, 2, 3, 4], default=4,
+                       help='跟踪曲线 (1: 椭圆, 2: 正弦直线, 3: 双正弦, 4: 一次函数直线)')  
     parser.add_argument('--predict_step', type=int, default=10,
                        help='预测步长,最大值20,最小值5,默认10')
     parser.add_argument('--dt', type=float, default=0.1,
@@ -25,10 +25,10 @@ def parse_arguments():
                        help='轨迹周期时间,最大值90,最小值45,默认45,推荐是3的倍数')
     parser.add_argument('--loop_num', type=int, default=1,
                        help='循环次数,最大值5,最小值1,默认1')
-    parser.add_argument('--noise_mean', type=float, default=-2,
-                       help='轨迹噪声均值,默认-2')
-    parser.add_argument('--noise_std', type=float, default=0.52,
-                       help='轨迹噪声标准差,默认0.5')
+    parser.add_argument('--noise_mean', type=float, default=-1.1,
+                       help='轨迹噪声均值,默认-1.1')
+    parser.add_argument('--noise_std', type=float, default=0.6,
+                       help='轨迹噪声标准差,默认0.6')
     parser.add_argument('--eta', type=float, default=100.0,
                    help='自适应NMPC控制参数,默认100.0（参考原文件的距离缩放系数）')
     parser.add_argument('--adaptive', action='store_true', default=True,
@@ -36,28 +36,49 @@ def parse_arguments():
     parser.add_argument('--output_dir', type=str, default='nmpc_results',
                        help='输出目录')
     return parser.parse_args()
-
+# 轨迹方程,注意轨迹方程不要超过NMPC设计的边界
 def get_trajectory_equations(trajectory_type, t):
     """根据轨迹类型生成轨迹方程"""
     if trajectory_type == 1:
         # 椭圆轨迹
         x_r = 150 * np.sin(t) + 28.2
         y_r = 60 * np.cos(t) - 85.4
+        # 计算航向角：椭圆的导数 dx/dt = 150*cos(t), dy/dt = -60*sin(t)
+        dx_dt = 150 * np.cos(t)
+        dy_dt = -60 * np.sin(t)
+        psi_r = np.arctan2(dy_dt, dx_dt)
         name = "Elliptical Trajectory: x = 150*sin(t) + 28.2, y = 60*cos(t) - 85.4"
     elif trajectory_type == 2:
         # 正弦直线轨迹
-        x_r = 40 * np.sin(t) + 1
-        y_r = 10*t
-        name = "SIN Trajectory: x = 40*sin(t) + 1, y = t"
+        x_r = 100 * np.sin(t) + 28.2
+        y_r = 30 * t - 205.4
+        # 计算航向角：正弦直线的导数 dx/dt = 100*cos(t), dy/dt = 10
+        dx_dt = 100 * np.cos(t)
+        dy_dt = 10 * np.ones_like(t)
+        psi_r = np.arctan2(dy_dt, dx_dt)
+        name = "SIN Trajectory: x = 100*sin(t) + 28.2, y = 30*t - 205.4"
     elif trajectory_type == 3:
         # 双正弦轨迹
         x_r = 150 * np.cos(t) + 28.2
         y_r = 60 * np.sin(2*t) - 85.4
+        # 计算航向角：双正弦的导数 dx/dt = -150*sin(t), dy/dt = 120*cos(2*t)
+        dx_dt = -150 * np.sin(t)
+        dy_dt = 120 * np.cos(2*t)
+        psi_r = np.arctan2(dy_dt, dx_dt)
         name = "Lissajous Trajectory: x = 150*sin(t) + 28.2, y = 60*cos(2*t) - 85.4"
+    elif trajectory_type == 4:
+        # 一次函数直线轨迹
+        x_r = 50 * t - 180
+        y_r = 40 * t - 260
+        # 计算航向角：一次函数直线的导数 dx/dt = 50, dy/dt = 40
+        dx_dt = 50 * np.ones_like(t)
+        dy_dt = 40 * np.ones_like(t)
+        psi_r = np.arctan2(dy_dt, dx_dt)
+        name = "Linear Trajectory: x = 50*t - 180, y = 40*t - 260"
     else:
         raise ValueError(f"不支持的轨迹类型: {trajectory_type}")
     
-    return x_r, y_r, name
+    return x_r, y_r, psi_r, name
 
 # 解析命令行参数
 args = parse_arguments()
@@ -85,11 +106,12 @@ t = np.linspace(0, 2*M_PI*loop_num, int(tol / T) + 1)  # 时间向量
 
 # ==================== 生成参考轨迹 ====================
 # 使用指定的轨迹参数
-x_r1, y_r1, trajectory_name = get_trajectory_equations(args.trajectory, t)
+x_r1, y_r1, psi_r1, trajectory_name = get_trajectory_equations(args.trajectory, t)
 
 x_r1 = x_r1[:, np.newaxis]
 y_r1 = y_r1[:, np.newaxis]
-path_points = np.concatenate([x_r1, y_r1], axis=1)
+psi_r1 = psi_r1[:, np.newaxis]
+path_points = np.concatenate([x_r1, y_r1, psi_r1], axis=1)
 sim_steps = len(path_points)
 
 print(f"轨迹点数量: {sim_steps}")
@@ -99,7 +121,7 @@ print(f"模型类型: Model {args.model}")
 
 # ==================== 权重参数 ====================
 # 调整权重参数以匹配Simulation_nmpc0621.py的效果
-if args.trajectory == 2 or args.trajectory == 1:
+if args.trajectory == 2 or args.trajectory == 1 or args.trajectory == 4:
     Q = [0.001, 0.001, 0.001, 3, 3, 0.1]  # 降低位置误差权重
     R = [0.003, 0.003]  # 调整控制权重
     F_low = [0.001, 0.002, 0.002, 10, 10, 0.15]  # 参考原文件的Q_low
@@ -129,25 +151,25 @@ def build_dynamics_model(model, u, v, r, psi, Tp, Ts):
     
     if model == 1:
         #1模型
-        du_model = -0.304252 * u - 0.999143 * v + 0.133762 * r * u + 3.182423 * (Tp + Ts) + 5.932517
-        dv_model = -3.908326 * r - 0.343078 * v + 0.119421 * (Tp - Ts) + 0.036246
-        dr_model = -0.000401 * u * v - 4.544756 * r - 0.000019 * (Tp - Ts) + 0.010658
+        du_model = 0.133762 * r * u + -0.304252 * u + -0.999143 * v + 2.182423 * (Tp + Ts) + -0.932517
+        dv_model = -3.908326 * r -0.343078 * v + -0.019421 * (Tp - Ts) + 0.036246
+        dr_model = 0.000401 * u * v + -4.544756 * r + -0.000119 * (Tp - Ts) + -0.010658
         
         print(f"\n使用识别的模型参数 (Model 1 - SGF参数):")
                 
     elif model == 2:
         # 2模型 
-        du_model = 0.247237 * u * r + -0.241717 * u + -0.342290 * v + 0.006176 * (Tp + Ts) + 2.766341
-        dv_model = -4.839525 * r + -0.554457 * v + -0.000211 * (Tp - Ts) + -0.337847
-        dr_model = 0.004524 * u * v + -0.663275 * r + -0.000285 * (Tp - Ts) + -0.025273
+        du_model = 0.247237 * r * u + -0.241717 * u - 0.342290 * v + 2.236176 * (Tp + Ts) + -0.766341
+        dv_model = -4.839525 * r + -0.554457 * v + -0.018221 * (Tp - Ts) + 0.017847
+        dr_model = 0.000524 * u * v + -4.663275 * r + -0.000115 * (Tp - Ts) + -0.025273
         
         print(f"\n使用识别的模型参数 (Model 2 - EKF参数):")
                 
     elif model == 3:
         # 3模型 
-        du_model = 3.421511 * v * r + -0.387560 * u + 0.221420 * v + 6.025003 * r + 0.002711 * (Tp + Ts) + 7.635497
-        dv_model = -0.279953 * u * r + -0.017586 * u + -0.963812 * v + -2.291902 * r + -0.000274 * (Tp - Ts) + 0.037983
-        dr_model = 0.001568 * u * v + 0.005271 * u + 0.044927 * v + -0.442848 * r + -0.000233 * (Tp - Ts) + -0.155814
+        du_model = 0.121511 * r * u + -0.387560 * u + -0.521420 * v + 2.102711 * (Tp + Ts) + -0.635497
+        dv_model = -2.291902 * r + -0.263812 * v + -0.023274 * (Tp - Ts) + 0.030983
+        dr_model = 0.000568 * u * v + -4.305271 * r + -0.000113 * (Tp - Ts) + -0.015814
         
         print(f"\n使用识别的模型参数 (Model 3 - LPF参数):")
             
@@ -173,8 +195,9 @@ rhs = build_dynamics_model(args.model, u, v, r, psi, Tp, Ts)
 f = ca.Function('f', [state, control], [rhs])
 
 # ==================== 初始状态 ====================
-x0 = [0, 0, 0, path_points[0][0]+2, path_points[0][1]-2, 0]
-xs_list = [[0, 0, 0, point[0], point[1], 0] for point in path_points]
+x0 = [0, 0, 0, path_points[0][0]+10, path_points[0][1]-10, 0]
+# 创建带航向角的参考状态列表
+xs_list = [[0, 0, 0, point[0], point[1], point[2]] for point in path_points]
 state_history = [x0]
 u0 = np.zeros(2 * N).tolist()
 control_history = []
@@ -238,12 +261,8 @@ lateral_errors = []
 heading_errors = []
 
 def normalize_angle_diff(delta):
-    if delta > M_PI:
-        return delta - 2 * M_PI
-    elif delta < -M_PI:
-        return delta + 2 * M_PI
-    else:
-        return delta
+    """将角度差归一化到[-π, π]范围内"""
+    return (delta + M_PI) % (2 * M_PI) - M_PI
 
 def compute_target_psi(xs_list, sim_index):
     if sim_index >= len(xs_list) - 1:
@@ -351,8 +370,7 @@ plt.savefig(trajectory_plot_path)
 
 # ==================== 误差绘图 ====================
 plt.figure(figsize=(12, 6))
-plt.subplot(2, 1, 1)
-plt.plot(lateral_errors, label='Lateral Tracking Error', color='b', linewidth=1)
+plt.plot(10*t[:len(lateral_errors)], lateral_errors, label='Lateral Tracking Error', color='b', linewidth=1)
 plt.axhline(y=np.mean(lateral_errors), color='b', linestyle='--', 
            label=f'Mean Lateral Error: {np.mean(lateral_errors):.4f}')
 plt.ylabel('Lateral Error')
@@ -360,14 +378,7 @@ plt.title('Tracking Errors with Identified Model')
 plt.legend()
 plt.grid(True, alpha=0.3)
 
-plt.subplot(2, 1, 2)
-plt.plot(heading_errors, label='Heading Angle Error (rad)', color='r', linewidth=1)
-plt.axhline(y=np.mean(heading_errors), color='r', linestyle='--', 
-           label=f'Mean Heading Error: {np.mean(heading_errors):.4f} rad')
-plt.xlabel('Time Step')
-plt.ylabel('Heading Error (rad)')
-plt.legend()
-plt.grid(True, alpha=0.3)
+
 
 # 保存误差图
 error_plot_path = os.path.join(output_dir, f"nmpc_error_{args.model}_for_trajectory_{args.trajectory}.png")
@@ -375,32 +386,26 @@ plt.savefig(error_plot_path)
 
 # 可视化状态变量
 plt.figure(figsize=(12, 8))
-plt.subplot(4, 1, 1)
-plt.plot(t[:len(traj_u)], traj_u, label='u (surge velocity)', color='blue')
-plt.ylabel('u (m/s)')
+plt.subplot(3, 1, 1)
+plt.plot(10*t[:len(traj_u)], traj_u, label='u (surge velocity)', color='blue')
+plt.ylabel('u (cm/s)')
 plt.title('State Variables with Identified Model')
 plt.legend()
 plt.grid(True, alpha=0.3)
 
-plt.subplot(4, 1, 2)
-plt.plot(t[:len(traj_v)], traj_v, label='v (sway velocity)', color='green')
-plt.ylabel('v (m/s)')
+plt.subplot(3, 1, 2)
+plt.plot(10*t[:len(traj_v)], traj_v, label='v (sway velocity)', color='green')
+plt.ylabel('v (cm/s)')
 plt.legend()
 plt.grid(True, alpha=0.3)
 
-plt.subplot(4, 1, 3)
-plt.plot(t[:len(traj_r)], traj_r, label='r (yaw rate)', color='red')
+plt.subplot(3, 1, 3)
+plt.plot(10*t[:len(traj_r)], traj_r, label='r (yaw rate)', color='red')
 plt.ylabel('r (rad/s)')
 plt.legend()
 plt.grid(True, alpha=0.3)
 
-plt.subplot(4, 1, 4)
-plt.plot(t[:len(traj_psi)], traj_psi, label='psi (heading angle)', color='purple')
-plt.ylabel('psi (rad)')
-plt.xlabel('Time (s)')
-plt.legend()
-plt.grid(True, alpha=0.3)
-plt.tight_layout()
+
 
 # 保存状态变量图
 state_plot_path = os.path.join(output_dir, f"nmpc_state_variables_{args.model}_for_trajectory_{args.trajectory}.png")
@@ -408,10 +413,10 @@ plt.savefig(state_plot_path)
 
 # 推进器输出对比
 plt.figure(figsize=(12, 6))
-t_plot = t[:len(PWML)]
+t_plot = 10*t[:len(PWML)]
 plt.subplot(2, 1, 1)
 plt.plot(t_plot, PWML, label='Ts (Starboard Thruster)', color='blue')
-plt.ylabel('Thrust (N)')
+plt.ylabel('PWM')
 plt.title('Thruster Outputs with Identified Model')
 plt.legend()
 plt.grid(True, alpha=0.3)
@@ -419,7 +424,7 @@ plt.grid(True, alpha=0.3)
 plt.subplot(2, 1, 2)
 plt.plot(t_plot, PWMR, label='Tp (Port Thruster)', color='red')
 plt.xlabel('Time (s)')
-plt.ylabel('Thrust (N)')
+plt.ylabel('PWM')
 plt.legend()
 plt.grid(True, alpha=0.3)
 plt.tight_layout()

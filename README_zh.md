@@ -4,6 +4,18 @@
 
 本项目实现了一个基于识别模型的自适应轨迹跟踪非线性模型预测控制（NMPC）系统，主要用于无人船或水下机器人等移动平台的精确路径跟踪控制。系统基于CasADi框架构建优化问题，使用识别的动力学模型预测系统未来状态，并通过自适应权重调整机制提高跟踪精度和鲁棒性。
 
+youtube video:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/amLDn78ToMA?si=16PgnXkkBhMib3H5" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/GuF1A3Jz97g?si=NNRSXAfqiHLsGjHT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Bilibili video:
+
+<iframe src="https://player.bilibili.com/player.html?isOutside=true&aid=115633102525246&bvid=BV1iVSFB7ESe&cid=34365508342&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
+
+<iframe src="https://player.bilibili.com/player.html?isOutside=true&aid=115633102525239&bvid=BV1iVSFB7ESr&cid=34365442883&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
+
 ## 核心功能特点
 
 ### 1. 多模型支持
@@ -122,19 +134,19 @@ python identified_model_nmpc_test.py
 
 | 参数               | 类型      | 默认值       | 描述                                                               |
 | ------------------ | --------- | ------------ | ------------------------------------------------------------------ |
-| `--model`          | int (1-3) | 1            | 模型类型 (1: 基础模型18参数, 2: 分离模型21参数, 3: 简化模型16参数) |
-| `--trajectory`     | int (1-3) | 1            | 跟踪轨迹 (1: 椭圆, 2: 正弦直线, 3: 双正弦)                         |
-| `--predict_step`   | int       | 10           | 预测步长,最大值20,最小值5,默认10                                   |
-| `--dt`             | float     | 0.1          | 采样时间,最大值0.5,最小值0.05,默认0.1                              |
-| `--cycle_time`     | int       | 45           | 轨迹周期时间,最大值90,最小值45,默认45,推荐是3的倍数                |
-| `--loop_num`       | int       | 1            | 循环次数,最大值5,最小值1,默认1                                     |
-| `--noise_mean`     | float     | -1           | 轨迹噪声均值                                                       |
-| `--noise_std`      | float     | 0.52         | 轨迹噪声标准差                                                     |
-| `--eta`            | float     | 100.0        | 自适应NMPC控制参数                                                 |
-| `--adaptive`       | flag      | True         | 是否启用自适应NMPC控制                                             |
-| `--output_dir`     | string    | nmpc_results | 输出目录                                                           |
+| `--model`        | int (1-3) | 1            | 模型类型 (1: 基础模型18参数, 2: 分离模型21参数, 3: 简化模型16参数) |
+| `--trajectory`   | int (1-3) | 1            | 跟踪轨迹 (1: 椭圆, 2: 正弦直线, 3: 双正弦)                         |
+| `--predict_step` | int       | 10           | 预测步长,最大值20,最小值5,默认10                                   |
+| `--dt`           | float     | 0.1          | 采样时间,最大值0.5,最小值0.05,默认0.1                              |
+| `--cycle_time`   | int       | 45           | 轨迹周期时间,最大值90,最小值45,默认45,推荐是3的倍数                |
+| `--loop_num`     | int       | 1            | 循环次数,最大值5,最小值1,默认1                                     |
+| `--noise_mean`   | float     | -1           | 轨迹噪声均值                                                       |
+| `--noise_std`    | float     | 0.52         | 轨迹噪声标准差                                                     |
+| `--eta`          | float     | 100.0        | 自适应NMPC控制参数                                                 |
+| `--adaptive`     | flag      | True         | 是否启用自适应NMPC控制                                             |
+| `--output_dir`   | string    | nmpc_results | 输出目录                                                           |
 
-### 使用示例
+### 仿真使用示例
 
 1. 使用模型2跟踪双正弦轨迹，并启用自适应控制：
 
@@ -159,6 +171,23 @@ python identified_model_nmpc_test.py --model 3 --trajectory 2 --noise_mean 0 --n
 ```bash
 python identified_model_nmpc_test.py --no-adaptive
 ```
+
+### 下位机使用示例
+
+本项目还提供下位机ESP32驱动代码，用于与下位机进行通信和数据处理。
+下位机驱动代码包含在 `esp32_mini_nmpc_boat`目录下，整体框架基于Platformio的Arduino开发环境。核心代码在 `esp32_mini_nmpc_boat/src/main.cpp`中。Platformio依赖库在 `esp32_mini_nmpc_boat\platformio.ini`中。主要功能包括：
+下位机esp32外接TB6612FNG两路电机驱动模块，用于控制船体的运动。
+
+- 与上位机通过UDP通信
+- 接收和解析上位机发送的控制指令
+- 处理控制输入
+  服务器地址：192.168.0.102
+  UDP端口：8000
+  解析控制指令 格式：speed1,speed2,speed3,speed4；
+  前进实例：500,0,500,0；
+  后退实例：-500,0,-500,0；
+  左转实例：0,500,0,-500；
+  右转实例：0,-500,0,500；
 
 ## 输出结果说明
 
@@ -191,16 +220,20 @@ python identified_model_nmpc_test.py --no-adaptive
 - 误差数据（Lateral_Error, Heading_Error）
 
 ## 引用
+
 如果您在研究中使用了此代码，请引用我们的工作：
+
 ```
-@article{delima2025colregs,
+@article{Pengliu2025ATWNMPC,
   title={Sparse Identification of Nonlinear Dynamics with Adaptive Terminal Weight NMPC in Unmanned Surface Vehicle},
   author={Peng Liu, Yunsheng Fan,~\IEEEmembership{Member, IEEE}, Yan Wang, Xiaojie Sun, Zhe Sun, and Quan An},
-  journal={Submitted to IEEE Sensors Journal},
+  journal={Submitted to IEEE Transactions on Control Systems Technology},
   year={2025}
 }
 ```
+
 ## Contact
+
 For questions or collaborations:
 
 刘鹏: 3126171871@qq.com

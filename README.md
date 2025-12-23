@@ -4,6 +4,16 @@
 
 This project implements an adaptive trajectory tracking Nonlinear Model Predictive Control (NMPC) system based on identified models, primarily used for precise path tracking control of mobile platforms such as unmanned surface vehicles or underwater robots. The system builds optimization problems based on the CasADi framework, uses identified dynamic models to predict future system states, and improves tracking accuracy and robustness through an adaptive weight adjustment mechanism.
 
+youtube video:
+<iframe width="560" height="315" src="https://www.youtube.com/embed/amLDn78ToMA?si=16PgnXkkBhMib3H5" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/GuF1A3Jz97g?si=NNRSXAfqiHLsGjHT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Bilibili video:
+<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115633102525246&bvid=BV1iVSFB7ESe&cid=34365508342&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
+
+<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115633102525239&bvid=BV1iVSFB7ESr&cid=34365442883&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
+
 ## Core Features
 
 ### 1. Multi-model Support
@@ -193,10 +203,10 @@ The generated CSV files include the following data:
 ## Citation
 If you use this code in your research, please cite our work:
 ```
-@article{delima2025colregs,
+@article{Pengliu2025ATWNMPC,
   title={Sparse Identification of Nonlinear Dynamics with Adaptive Terminal Weight NMPC in Unmanned Surface Vehicle},
   author={Peng Liu, Yunsheng Fan,~\IEEEmembership{Member, IEEE}, Yan Wang, Xiaojie Sun, Zhe Sun, and Quan An},
-  journal={Submitted to IEEE Sensors Journal},
+  journal={Submitted to IEEE Transactions on Control Systems Technology},
   year={2025}
 }
 ```
