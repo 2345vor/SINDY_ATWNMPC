@@ -224,12 +224,17 @@ python identified_model_nmpc_test.py --no-adaptive
 如果您在研究中使用了此代码，请引用我们的工作：
 
 ```
-@article{Pengliu2025ATWNMPC,
-  title={Sparse Identification of Nonlinear Dynamics with Adaptive Terminal Weight NMPC in Unmanned Surface Vehicle},
-  author={Peng Liu, Yunsheng Fan,~\IEEEmembership{Member, IEEE}, Yan Wang, Xiaojie Sun, Zhe Sun, and Quan An},
-  journal={Submitted to IEEE Transactions on Control Systems Technology},
-  year={2025}
-}
+@ARTICLE{11580369,
+  author={Liu, Peng and Fan, Yunsheng and Wang, Yan and Sun, Xiaojie and Sun, Zhe and An, Quan},
+  journal={IEEE Transactions on Control Systems Technology}, 
+  title={Design and Experimental Evaluation of SINDy-Based Modeling and Adaptive NMPC for USVs}, 
+  year={2026},
+  volume={},
+  number={},
+  pages={1-15},
+  keywords={Modeling;Tracking;Underactuated surface vessels;Trajectory tracking;Timing;Trajectory;Design methodology;Filtering;Algorithms;Matrices;Adaptive terminal weight nonlinear model predictive control (ATW-NMPC);sparse identification of nonlinear dynamics (SINDy);trajectory tracking;unmanned surface vehicles (USVs)},
+  doi={10.1109/TCST.2026.3704210}}
+
 ```
 
 ## Contact
